@@ -1,0 +1,6 @@
+# Files that get executed inside Linux containers must always check out
+# with LF, regardless of core.autocrlf on the cloning machine — a CRLF
+# shebang line breaks Alpine's /bin/sh.
+*.sh text eol=lf
+Dockerfile text eol=lf
+docker-compose*.yml text eol=lf

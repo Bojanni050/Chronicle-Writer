@@ -1,0 +1,55 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: inkwell
+      POSTGRES_PASSWORD: inkwell
+      POSTGRES_DB: inkwell
+    volumes:
+      - inkwell_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U inkwell -d inkwell']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://inkwell:inkwell@db:5432/inkwell
+    env_file:
+      - .env
+    volumes:
+      - inkwell_uploads:/app/public/uploads
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    # No DOMAIN default here — caddy-entrypoint.sh generates a different
+    # Caddyfile depending on whether DOMAIN reaches the container set or
+    # unset. Defaulting it to "localhost" would make Caddy only match
+    # requests with that exact Host header, breaking access via the VM's
+    # actual IP.
+    env_file:
+      - .env
+    entrypoint: ['/bin/sh', '/caddy-entrypoint.sh']
+    ports:
+      - '${CADDY_HTTP_PORT:-80}:80'
+      - '${CADDY_HTTPS_PORT:-443}:443'
+    volumes:
+      - ./docker/caddy-entrypoint.sh:/caddy-entrypoint.sh:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  inkwell_pgdata:
+  inkwell_uploads:
+  caddy_data:
+  caddy_config:
